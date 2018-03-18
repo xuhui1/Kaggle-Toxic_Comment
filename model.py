@@ -67,7 +67,7 @@ def model_lstm_concat_cnn(sentence_len,embedding_matrix,num_filters):
     x = Embedding(embedding_matrix.shape[0],embedding_matrix.shape[1],weights=[embedding_matrix],trainable=True)(inp)
     x = SpatialDropout1D(0.4)(x)
     
-    cnn = Conv2D(num_filters, kernel_size=3, kernel_initializer='normal',activation='elu')(x)
+    cnn = Conv1D(num_filters, kernel_size=3, kernel_initializer='normal',activation='elu')(x)
     avg_pool = GlobalAveragePooling1D()(x)
     max_pool = GlobalMaxPooling1D()(x)
     cnn = concatenate([avg_pool, max_pool])
@@ -84,5 +84,28 @@ def model_lstm_concat_cnn(sentence_len,embedding_matrix,num_filters):
                   metrics=['accuracy'])
     return model
     
+def model_lstm_cnn(sentence_len,embedding_matrix):
+    inp = Input(shape(sentence_len,),dtype=int32)
+    x = Embedding(embedding_matrix.shape[0],embedding_matrix.shape[1],weights=[embedding_matrix],trainable=True)(inp)
+    x = SpatialDropout1D(0.4)(x)
     
+    x = Reshape((sentence_len,embedding_matrix.shape[1],1))(x)
+    x = Conv2D(num_filters, kernel_size=(filter_sizes[0], embedding_matrix.shape[1]), kernel_initializer='normal',
+                                                                                    activation='elu')(x)
+    x = Dropout(0.2)(x)
+    x_w, x_h, x_d = [int(value) for value in x.shape[1:]]
+    x = Permute((1,3,2))(x)
+    x = Reshape((x_w, x_h * x_d))(x)
+    x = Bidirectional(LSTM(32, return_sequences=True))(x)
+    x = SpatialDropout1D(0.2)(x)
+    x = GlobalMaxPooling1D()(x)
+    x = Dense(32, activation='relu')(x)
+    x = Dropout(0.2)(x)
+    outp = Dense(6, activation="sigmoid")(x)
+    
+    model = Model(inputs=inp, outputs=outp)
+    model.compile(loss='binary_crossentropy',
+                  optimizer='adam',
+                  metrics=['accuracy'])
+    return model
     
