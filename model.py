@@ -27,7 +27,7 @@ def model_bilstm_cnn(sentence_len,embedding_matrix):
 # the difference of conv1D and conv2D：http://blog.csdn.net/hahajinbu/article/details/79535172
 # conv1D: kernel_size=3 -> (3,embed_size)
 # conv2D: kernel_size=3 -> (3,3,1)  so define the kernel size=(3,embed_size) -> (3,embed_size,1)
-def model_mulit_cnn(sentence_len,embedding_matrix,num_filters=64):
+def model_mulitkernel_cnn(sentence_len,embedding_matrix,num_filters=64):
     inp = Input(shape(sentence_len,),dtype=int32)
     x = Embedding(embedding_matrix.shape[0],embedding_matrix.shape[1],weights=[embedding_matrix],trainable=True)(inp)
     x = SpatialDropout1D(0.4)(x)
@@ -61,4 +61,4 @@ def model_mulit_cnn(sentence_len,embedding_matrix,num_filters=64):
                   metrics=['accuracy'])
 
     return model
-    
+
