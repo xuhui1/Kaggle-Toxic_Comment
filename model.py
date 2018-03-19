@@ -62,22 +62,23 @@ def model_mulitkernel_cnn(sentence_len,embedding_matrix,num_filters=64):
 
     return model
 
-def model_lstm_concat_cnn(sentence_len,embedding_matrix,num_filters):
-    inp = Input(shape=(sentence_len,),dtype='int32')
-    x = Embedding(embedding_matrix.shape[0],embedding_matrix.shape[1],weights=[embedding_matrix],trainable=True)(inp)
+def model_lstm_concat_cnn(embedding_matrix,sentence_len, num_filters=64):
+    inp = Input(shape=(sentence_len,), dtype='int32')
+    x = Embedding(embedding_matrix.shape[0], embedding_matrix.shape[1], weights=[embedding_matrix], trainable=True)(inp)
     x = SpatialDropout1D(0.4)(x)
-    
-    cnn = Conv1D(num_filters, kernel_size=3, kernel_initializer='normal',activation='elu')(x)
-    avg_pool = GlobalAveragePooling1D()(x)
-    max_pool = GlobalMaxPooling1D()(x)
-    cnn = concatenate([avg_pool, max_pool])
-    
-    lstm =  Bidirectional(GRU(128, return_sequences=True, dropout=0.15, recurrent_dropout=0.15))(x)
-    
-    x =  Concatenate(axis=1)([cnn,lstm])
+
+    cnn = Conv1D(num_filters, kernel_size=3, kernel_initializer='normal', activation='elu')(x)
+    # avg_pool = GlobalAveragePooling1D()(cnn)
+    cnn = MaxPooling1D(pool_size=6)(cnn)
+    # cnn = concatenate([avg_pool, max_pool])
+    cnn = Flatten()(cnn)
+
+    lstm = Bidirectional(GRU(128, return_sequences=True, dropout=0.15, recurrent_dropout=0.15))(x)
+
+    x = Concatenate(axis=1)([cnn, GlobalAveragePooling1D()(lstm),GlobalMaxPooling1D()(lstm)])
     x = Dropout(0.4)(x)
     outp = Dense(6, activation="sigmoid")(x)
-    
+
     model = Model(inputs=inp, outputs=outp)
     model.compile(loss='binary_crossentropy',
                   optimizer='adam',
