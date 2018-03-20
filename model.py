@@ -1,11 +1,48 @@
 
 # coding = utf-8
-from keras.layers import Dense, Input, LSTM, Bidirectional, Conv1D, Conv2D, GRU
+from keras.layers import Dense, Input, LSTM, Bidirectional, Conv1D, Conv2D, GRU,Lambda
 from keras.layers import Dropout, Embedding,Reshape
 
 from keras.preprocessing import text, sequence
 from keras.layers import GlobalMaxPooling1D, GlobalAveragePooling1D, concatenate, SpatialDropout1D
 from keras.models import Model
+
+from keras.backend import K
+
+def char_word_bilstm_cnn(sentence_len,embedding_matrix,char_vocab_size,char_embedding_size=25):
+    #word embedding
+    word_ids = Input(batch_shape=(None, None), dtype='int32')
+    word_embeddings = Embedding(embedding_matrix.shape[0], embedding_matrix.shape[1], weights=[embedding_matrix],trainable=True)(word_ids)
+    #char embedding
+    char_ids = Input(batch_shape=(None, None, None), dtype='int32')
+    char_embeddings = Embedding(input_dim=char_vocab_size,output_dim=char_embedding_size,mask_zero=True )(char_ids)
+    
+    s = K.shape(char_embeddings)
+    char_embeddings = Lambda(lambda x: K.reshape(x, shape=(-1, s[-2], char_embedding_size)))(char_embeddings)
+    
+    fwd_state = LSTM(25, return_state=True)(char_embeddings)[-2]
+    bwd_state = LSTM(25, return_state=True, go_backwards=True)(char_embeddings)[-2]
+    char_embeddings = Concatenate(axis=-1)([fwd_state, bwd_state])
+    # shape = (batch size, max sentence length, char hidden size)
+    char_embeddings = Lambda(lambda x: K.reshape(x, shape=[-1, s[1], 2 * 25]))(char_embeddings)
+    
+    x = Concatenate(axis=-1)([word_embeddings, char_embeddings])
+    x = Dropout(config.dropout)(x)
+    
+    x = Bidirectional(LSTM(128, return_sequences=True, dropout=0.15, recurrent_dropout=0.15))(x)
+    x = Conv1D(64, kernel_size=3, padding='valid', kernel_initializer='glorot_uniform')(x)
+    
+    avg_pool = GlobalAveragePooling1D()(x)
+    max_pool = GlobalMaxPooling1D()(x)
+    x = concatenate([avg_pool, max_pool])
+
+    out = Dense(6, activation='sigmoid')(x)
+
+    sequence_lengths = Input(batch_shape=(None, 1), dtype='int32')
+    
+    model = Model(inputs=[word_ids, char_ids, sequence_lengths], out)
+    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+    return model
 
 def model_bilstm_cnn(sentence_len,embedding_matrix):
     inp = Input(shape=(sentence_len,),dtype=int32)
